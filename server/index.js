@@ -34,13 +34,9 @@ function authMiddleware(req, res, next) {
 // Auth Routes
 app.post('/api/register', async (req, res) => {
   const { username, password, full_name } = req.body;
-  if (!username || !password || !full_name) {
-    return res.status(400).json({ error: 'সব তথ্য প্রয়োজন' });
-  }
+  if (!username || !password || !full_name) return res.status(400).json({ error: 'সব তথ্য প্রয়োজন' });
   const existing = await users.findOne({ username });
-  if (existing) {
-    return res.status(400).json({ error: 'ব্যবহারকারী নাম ইতিমধ্যে আছে' });
-  }
+  if (existing) return res.status(400).json({ error: 'ব্যবহারকারী নাম ইতিমধ্যে আছে' });
   const hashedPassword = bcrypt.hashSync(password, 10);
   const doc = await users.insert({ username, password: hashedPassword, full_name, created_at: new Date().toISOString() });
   const token = jwt.sign({ userId: doc._id }, JWT_SECRET, { expiresIn: '24h' });
@@ -49,13 +45,9 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'ব্যবহারকারী নাম এবং পাসওয়ার্ড প্রয়োজন' });
-  }
+  if (!username || !password) return res.status(400).json({ error: 'ব্যবহারকারী নাম এবং পাসওয়ার্ড প্রয়োজন' });
   const user = await users.findOne({ username });
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'ভুল ব্যবহারকারী নাম বা পাসওয়ার্ড' });
-  }
+  if (!user || !bcrypt.compareSync(password, user.password)) return res.status(401).json({ error: 'ভুল ব্যবহারকারী নাম বা পাসওয়ার্ড' });
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '24h' });
   res.json({ token, user: { id: user._id, username: user.username, full_name: user.full_name } });
 });
@@ -63,7 +55,24 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/me', authMiddleware, async (req, res) => {
   const user = await users.findOne({ _id: req.userId });
   if (!user) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি' });
-  res.json({ id: user._id, username: user.username, full_name: user.full_name });
+  res.json({ id: user._id, username: user.username, full_name: user.full_name, created_at: user.created_at });
+});
+
+app.put('/api/profile', authMiddleware, async (req, res) => {
+  const { full_name, old_password, new_password } = req.body;
+  const user = await users.findOne({ _id: req.userId });
+  if (!user) return res.status(404).json({ error: 'ব্যবহারকারী পাওয়া যায়নি' });
+  const updates = {};
+  if (full_name) updates.full_name = full_name;
+  if (new_password) {
+    if (!old_password || !bcrypt.compareSync(old_password, user.password)) {
+      return res.status(400).json({ error: 'পুরো পাসওয়ার্ড সঠিক নয়' });
+    }
+    updates.password = bcrypt.hashSync(new_password, 10);
+  }
+  await users.update({ _id: req.userId }, { $set: updates });
+  const updated = await users.findOne({ _id: req.userId });
+  res.json({ id: updated._id, username: updated.username, full_name: updated.full_name });
 });
 
 // Task Routes
@@ -75,21 +84,29 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
-  const { title, description, date } = req.body;
+  const { title, description, date, category, priority } = req.body;
   if (!title) return res.status(400).json({ error: 'কাজের শিরোনাম প্রয়োজন' });
   const targetDate = date || new Date().toISOString().split('T')[0];
-  const doc = await tasks.insert({ user_id: req.userId, title, description: description || '', date: targetDate, completed: false, created_at: new Date().toISOString() });
+  const doc = await tasks.insert({
+    user_id: req.userId, title, description: description || '',
+    date: targetDate, completed: false,
+    category: category || 'general',
+    priority: priority || 'medium',
+    created_at: new Date().toISOString()
+  });
   res.json({ ...doc, id: doc._id });
 });
 
 app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
-  const { title, description, completed } = req.body;
+  const { title, description, completed, category, priority } = req.body;
   const task = await tasks.findOne({ _id: req.params.id, user_id: req.userId });
   if (!task) return res.status(404).json({ error: 'কাজ পাওয়া যায়নি' });
   const updates = {};
   if (title !== undefined) updates.title = title;
   if (description !== undefined) updates.description = description;
   if (completed !== undefined) updates.completed = completed;
+  if (category !== undefined) updates.category = category;
+  if (priority !== undefined) updates.priority = priority;
   await tasks.update({ _id: req.params.id }, { $set: updates });
   const updated = await tasks.findOne({ _id: req.params.id });
   res.json({ ...updated, id: updated._id });
@@ -104,12 +121,12 @@ app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
 
 // Notes Routes
 app.get('/api/notes', authMiddleware, async (req, res) => {
-  const { date } = req.query;
-  let noteList;
-  if (date) {
-    noteList = await notes.find({ user_id: req.userId, date }).sort({ created_at: -1 });
-  } else {
-    noteList = await notes.find({ user_id: req.userId }).sort({ created_at: -1 }).limit(30);
+  const { date, search } = req.query;
+  let query = { user_id: req.userId };
+  if (date) query.date = date;
+  let noteList = await notes.find(query).sort({ created_at: -1 }).limit(50);
+  if (search) {
+    noteList = noteList.filter(n => n.content.toLowerCase().includes(search.toLowerCase()));
   }
   res.json(noteList.map(n => ({ ...n, id: n._id })));
 });
@@ -129,6 +146,23 @@ app.delete('/api/notes/:id', authMiddleware, async (req, res) => {
   if (!note) return res.status(404).json({ error: 'নোট পাওয়া যায়নি' });
   await notes.remove({ _id: req.params.id });
   res.json({ message: 'নোট মুছে ফেলা হয়েছে' });
+});
+
+// Calendar Route
+app.get('/api/calendar', authMiddleware, async (req, res) => {
+  const { month, year } = req.query;
+  const m = parseInt(month) || new Date().getMonth();
+  const y = parseInt(year) || new Date().getFullYear();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const calendarData = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayTasks = await tasks.find({ user_id: req.userId, date: dateStr });
+    const total = dayTasks.length;
+    const completed = dayTasks.filter(t => t.completed === true).length;
+    calendarData.push({ date: dateStr, total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 });
+  }
+  res.json(calendarData);
 });
 
 // Dashboard Route
@@ -152,26 +186,25 @@ app.get('/api/dashboard', authMiddleware, async (req, res) => {
     emoji = '📝';
     mood = 'info';
   } else if (percentage < 50) {
-    message = `আজকে আপনি মাত্র ${percentage}% কাজ সম্পন্ন করেছেন। এটা একটু কম। কিন্তু চিন্তা করবেন না! প্রতিটি ছোট পদক্ষেপই গুরুত্বপূর্ণ। আপনি পারবেন! এগিয়ে চলুন, আগামীকাল আরো ভালো করতে পারবেন! 💪`;
+    message = `আজকে আপনি মাত্র ${percentage}% কাজ সম্পন্ন করেছেন। এটা একটু কম। কিন্তু চিন্তা করবেন না! প্রতিটি ছোট পদক্ষেপই গুরুত্বপূর্ণ। আপনি পারবেন! 💪`;
     emoji = '🔥';
     mood = 'disappointed';
   } else if (percentage < 70) {
-    message = `ভালো কাজ করেছেন! আপনি ${percentage}% কাজ সম্পন্ন করেছেন। এটা একটি মধ্যম হার। আরো কিছুটা চেষ্টা করলে সেরা ফলাফল পাবেন। চালিয়ে যান! 👍`;
+    message = `ভালো কাজ করেছেন! আপনি ${percentage}% কাজ সম্পন্ন করেছেন। আরো কিছুটা চেষ্টা করলে সেরা ফলাফল পাবেন। চালিয়ে যান! 👍`;
     emoji = '👍';
     mood = 'neutral';
   } else if (percentage < 90) {
-    message = `দারুণ! আপনি ${percentage}% কাজ সম্পন্ন করেছেন! এটা সত্যিই ভালো একটি হার। আপনি খুব ভালো কাজ করছেন। শুধু একটু আরো বাকি! চালিয়ে যান! 🌟`;
+    message = `দারুণ! আপনি ${percentage}% কাজ সম্পন্ন করেছেন! আপনি খুব ভালো কাজ করছেন। শুধু একটু আরো বাকি! 🌟`;
     emoji = '🌟';
     mood = 'good';
   } else {
-    message = `অসাধারণ! আপনি ${percentage}% কাজ সম্পন্ন করেছেন! 🎉 আপনি আজকে দারুণ কাজ করেছেন! এই গতিই ধরে রাখুন। আপনি সত্যিই অসাধারণ! অভিনন্দন! 🏆✨`;
+    message = `অসাধারণ! আপনি ${percentage}% কাজ সম্পন্ন করেছেন! 🎉 এই গতিই ধরে রাখুন। আপনি সত্যিই অসাধারণ! 🏆✨`;
     emoji = '🎉';
     mood = 'excellent';
   }
 
   const weekStart = new Date(targetDate);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
   const weeklyStats = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
@@ -181,15 +214,37 @@ app.get('/api/dashboard', authMiddleware, async (req, res) => {
     const dayTotal = wTasks.length;
     const dayCompleted = wTasks.filter(t => t.completed === true).length;
     weeklyStats.push({
-      date: dateStr,
-      day: banglaDays[d.getDay()],
-      total: dayTotal,
-      completed: dayCompleted,
+      date: dateStr, day: banglaDays[d.getDay()],
+      total: dayTotal, completed: dayCompleted,
       percentage: dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0
     });
   }
 
-  res.json({ date: targetDate, day: dayName, totalTasks, completedTasks, percentage, message, emoji, mood, weeklyStats });
+  // Streak calculation
+  const allUserTasks = await tasks.find({ user_id: req.userId });
+  const dateMap = {};
+  allUserTasks.forEach(t => {
+    if (!dateMap[t.date]) dateMap[t.date] = { total: 0, completed: 0 };
+    dateMap[t.date].total++;
+    if (t.completed) dateMap[t.date].completed++;
+  });
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const dayData = dateMap[ds];
+    if (dayData && dayData.total > 0 && dayData.completed === dayData.total) {
+      streak++;
+    } else if (dayData && dayData.total > 0) {
+      break;
+    } else if (i > 0) {
+      break;
+    }
+  }
+
+  res.json({ date: targetDate, day: dayName, totalTasks, completedTasks, percentage, message, emoji, mood, weeklyStats, streak });
 });
 
 // Stats Route
@@ -201,7 +256,32 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
   const totalNotes = noteList.length;
   const uniqueDates = [...new Set(allTasks.map(t => t.date))];
   const totalDays = uniqueDates.length;
-  res.json({ totalTasks, completedTasks, totalNotes, totalDays });
+
+  const dateMap = {};
+  allTasks.forEach(t => {
+    if (!dateMap[t.date]) dateMap[t.date] = { total: 0, completed: 0 };
+    dateMap[t.date].total++;
+    if (t.completed) dateMap[t.date].completed++;
+  });
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const dayData = dateMap[ds];
+    if (dayData && dayData.total > 0 && dayData.completed === dayData.total) {
+      streak++;
+    } else if (dayData && dayData.total > 0) {
+      break;
+    } else if (i > 0) {
+      break;
+    }
+  }
+
+  const totalPerfectDays = Object.values(dateMap).filter(d => d.total > 0 && d.completed === d.total).length;
+
+  res.json({ totalTasks, completedTasks, totalNotes, totalDays, streak, totalPerfectDays });
 });
 
 app.listen(PORT, () => {
