@@ -121,7 +121,25 @@ function LoginPage({ onLogin }) {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [dark] = useState(getTheme() === 'dark');
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown(cooldown - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const friendlyError = (msg) => {
+    const m = (msg || '').toLowerCase();
+    if (m.includes('rate limit')) return 'অনেকবার চেষ্টা করা হয়েছে। ৩০-৬০ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।';
+    if (m.includes('email not confirmed')) return 'ইমেইল যাচাই হয়নি। Supabase Dashboard → Authentication → Confirm email OFF করুন।';
+    if (m.includes('invalid login credentials')) return 'ভুল ইমেইল বা পাসওয়ার্ড। আবার চেষ্টা করুন।';
+    if (m.includes('user already registered')) return 'এই ইমেইলে অ্যাকাউন্ট আছে। লগইন ট্যাবে গিয়ে লগইন করুন।';
+    if (m.includes('password')) return 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।';
+    if (m.includes('network') || m.includes('fetch') || m.includes('failed to fetch')) return 'ইন্টারনেট সংযোগ চেক করুন।';
+    return msg || 'কিছু ভুল হয়েছে। আবার চেষ্টা করুন।';
+  };
 
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return (
@@ -152,7 +170,10 @@ function LoginPage({ onLogin }) {
         if (error) throw error;
         onLogin(data.user);
       }
-    } catch (err) { setError(err.message || 'কিছু ভুল হয়েছে'); }
+    } catch (err) {
+      setError(friendlyError(err.message));
+      setCooldown(30);
+    }
     setLoading(false);
   };
 
@@ -182,7 +203,7 @@ function LoginPage({ onLogin }) {
           {!isLogin && <input style={s.input} type="text" placeholder="পুরো নাম" value={fullName} onChange={e => setFullName(e.target.value)} required />}
           <input style={s.input} type="email" placeholder="ইমেইল" value={email} onChange={e => setEmail(e.target.value)} required />
           <input style={s.input} type="password" placeholder="পাসওয়ার্ড" value={password} onChange={e => setPassword(e.target.value)} required />
-          <button style={s.btn} type="submit" disabled={loading}>{loading ? 'অপেক্ষা করুন...' : (isLogin ? 'লগইন করুন' : 'রেজিস্টার করুন')}</button>
+          <button style={{ ...s.btn, opacity: (loading || cooldown > 0) ? 0.6 : 1 }} type="submit" disabled={loading || cooldown > 0}>{loading ? 'অপেক্ষা করুন...' : cooldown > 0 ? `${cooldown} সেকেন্ড পর আবার চেষ্টা করুন` : (isLogin ? 'লগইন করুন' : 'রেজিস্টার করুন')}</button>
         </form>
       </div>
     </div>
