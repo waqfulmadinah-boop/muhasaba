@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import confetti from 'canvas-confetti';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -139,8 +140,10 @@ function Navbar({ user, onLogout, currentPage, setCurrentPage, dark, setDark }) 
   const pages = [
     { id: 'dashboard', label: 'ড্যাশবোর্ড', icon: '📊' },
     { id: 'tasks', label: 'কাজ', icon: '✅' },
+    { id: 'muhasaba', label: 'মুহাসাবা', icon: '🕌' },
     { id: 'notes', label: 'নোট', icon: '📝' },
     { id: 'calendar', label: 'ক্যালেন্ডার', icon: '📅' },
+    { id: 'reports', label: 'রিপোর্ট', icon: '📈' },
     { id: 'achievements', label: 'ব্যাজ', icon: '🏅' },
     { id: 'settings', label: 'সেটিংস', icon: '⚙️' },
   ];
@@ -171,6 +174,9 @@ function Dashboard({ selectedDate, dark, refreshKey }) {
   const [dayTasks, setDayTasks] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
   const [noteCount, setNoteCount] = useState(0);
+  const [goal, setGoal] = useState(() => parseInt(localStorage.getItem('weekly_goal') || '80', 10));
+  const [editingGoal, setEditingGoal] = useState(false);
+  const confettiFired = useRef('');
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -186,6 +192,22 @@ function Dashboard({ selectedDate, dark, refreshKey }) {
   const completedTasks = dayTasks.filter(t => t.completed).length;
   const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const { message, emoji } = getMessage(percentage, totalTasks);
+
+  useEffect(() => {
+    const key = `${selectedDate}-${percentage}`;
+    if (percentage === 100 && totalTasks > 0 && confettiFired.current !== key) {
+      confettiFired.current = key;
+      confetti({ particleCount: 150, spread: 75, origin: { y: 0.6 } });
+      setTimeout(() => confetti({ particleCount: 80, spread: 100, origin: { y: 0.4 } }), 400);
+    }
+  }, [percentage, totalTasks, selectedDate]);
+
+  const saveGoal = (v) => {
+    const g = Math.min(100, Math.max(1, parseInt(v || '80', 10)));
+    setGoal(g);
+    localStorage.setItem('weekly_goal', String(g));
+    setEditingGoal(false);
+  };
 
   const dateMap = {};
   allTasks.forEach(t => {
@@ -238,6 +260,31 @@ function Dashboard({ selectedDate, dark, refreshKey }) {
           <div style={{ height: '100%', borderRadius: '10px', transition: 'width 1s ease', background: getProgressColor(percentage), width: `${percentage}%` }}></div>
         </div>
       </div>
+      <div style={{ background: c, borderRadius: '20px', padding: '20px 25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', marginBottom: '25px', animation: 'slideUp 0.5s ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '16px', fontWeight: '700', color: tc }}>🎯 সাপ্তাহিক লক্ষ্য: {goal}%</div>
+          {editingGoal ? (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input id="goal-input" type="number" min="1" max="100" defaultValue={goal} style={{ width: '70px', padding: '6px 10px', borderRadius: '8px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, background: dark ? '#1e272e' : 'white', color: tc, outline: 'none' }} />
+              <button onClick={() => saveGoal(document.getElementById('goal-input').value)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#00b894', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>OK</button>
+            </div>
+          ) : (
+            <button onClick={() => setEditingGoal(true)} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: dark ? '#3d3d3d' : '#f0f0f0', color: tc, fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>বদলান</button>
+          )}
+        </div>
+        {(() => {
+          const active = weeklyStats.filter(d => d.total > 0);
+          const avg = active.length > 0 ? Math.round(active.reduce((s, d) => s + d.percentage, 0) / active.length) : 0;
+          return (
+            <>
+              <div style={{ fontSize: '14px', color: sc, marginBottom: '8px' }}>এই সপ্তাহের গড়: <b style={{ color: tc }}>{avg}%</b> {avg >= goal ? '— লক্ষ্য অর্জিত! 🏆' : `— লক্ষ্য থেকে ${goal - avg}% বাকি`}</div>
+              <div style={{ width: '100%', height: '12px', background: dark ? '#3d3d3d' : '#e9ecef', borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(avg, 100)}%`, borderRadius: '8px', background: avg >= goal ? 'linear-gradient(135deg, #00b894, #00cec9)' : 'linear-gradient(135deg, #667eea, #764ba2)', transition: 'width 1s ease' }}></div>
+              </div>
+            </>
+          );
+        })()}
+      </div>
       <div style={{ background: c, borderRadius: '20px', padding: '25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)' }}>
         <div style={{ fontSize: '18px', fontWeight: '700', color: tc, marginBottom: '20px' }}>📊 সাপ্তাহিক পারফরম্যান্স</div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '180px', gap: '8px' }}>
@@ -264,6 +311,8 @@ function Tasks({ selectedDate, dark, onChange }) {
   const [priority, setPriority] = useState('medium');
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [recurrence, setRecurrence] = useState('none');
+  const [sortBy, setSortBy] = useState('new');
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -276,8 +325,23 @@ function Tasks({ selectedDate, dark, onChange }) {
   const addTask = async (e) => {
     e.preventDefault(); if (!title.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from('tasks').insert({ user_id: user.id, title, description, date: selectedDate, category, priority });
-    setTitle(''); setDescription(''); setCategory('general'); setPriority('medium'); setShowModal(false); load(); onChange();
+    const dates = [selectedDate];
+    if (recurrence === 'daily') {
+      for (let i = 1; i <= 7; i++) {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + i);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+    } else if (recurrence === 'weekly') {
+      for (let i = 1; i <= 4; i++) {
+        const d = new Date(selectedDate);
+        d.setDate(d.getDate() + i * 7);
+        dates.push(d.toISOString().split('T')[0]);
+      }
+    }
+    const rows = dates.map(dt => ({ user_id: user.id, title, description, date: dt, category, priority }));
+    await supabase.from('tasks').insert(rows);
+    setTitle(''); setDescription(''); setCategory('general'); setPriority('medium'); setRecurrence('none'); setShowModal(false); load(); onChange();
   };
   const toggleTask = async (task) => {
     await supabase.from('tasks').update({ completed: !task.completed }).eq('id', task.id);
@@ -294,6 +358,14 @@ function Tasks({ selectedDate, dark, onChange }) {
     if (filter === 'pending' && t.completed) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
+  });
+  const PRI_ORDER = { high: 0, medium: 1, low: 2 };
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === 'priority') {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return (PRI_ORDER[a.priority] ?? 1) - (PRI_ORDER[b.priority] ?? 1);
+    }
+    return 0;
   });
 
   const c = dark ? '#2d3436' : 'white';
@@ -317,10 +389,14 @@ function Tasks({ selectedDate, dark, onChange }) {
             {f === 'all' ? 'সব' : f === 'pending' ? 'বাকি' : 'সম্পন্ন'}
           </button>
         ))}
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '8px 12px', borderRadius: '10px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333', fontSize: '13px', fontWeight: '600', outline: 'none', cursor: 'pointer' }}>
+          <option value="new">নতুন আগে</option>
+          <option value="priority">প্রায়োরিটি অনুযায়ী</option>
+        </select>
       </div>
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '50px', color: sc }}><div style={{ fontSize: '50px', marginBottom: '10px' }}>📋</div>কোনো কাজ নেই</div>
-      ) : filtered.map((task, i) => {
+      ) : sorted.map((task, i) => {
         const cat = CATEGORIES.find(x => x.id === task.category) || CATEGORIES[0];
         const pri = PRIORITIES.find(p => p.id === task.priority) || PRIORITIES[1];
         return (
@@ -357,6 +433,12 @@ function Tasks({ selectedDate, dark, onChange }) {
               <div style={{ display: 'flex', gap: '6px', marginBottom: '15px', flexWrap: 'wrap' }}>
                 {PRIORITIES.map(p => (
                   <button key={p.id} type="button" onClick={() => setPriority(p.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: `2px solid ${priority === p.id ? p.color : 'transparent'}`, background: priority === p.id ? p.color + '22' : ic, color: priority === p.id ? p.color : sc, fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>{p.icon} {p.label}</button>
+                ))}
+              </div>
+              <label style={{ fontSize: '13px', color: sc, fontWeight: '600', marginBottom: '6px', display: 'block' }}>পুনরাবৃত্তি:</label>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                {[{ id: 'none', label: 'একবার' }, { id: 'daily', label: '🔁 প্রতিদিন (৭ দিন)' }, { id: 'weekly', label: '🔁 সাপ্তাহিক (৪ সপ্তাহ)' }].map(r => (
+                  <button key={r.id} type="button" onClick={() => setRecurrence(r.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: `2px solid ${recurrence === r.id ? '#667eea' : 'transparent'}`, background: recurrence === r.id ? '#667eea22' : ic, color: recurrence === r.id ? '#667eea' : sc, fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>{r.label}</button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -450,6 +532,65 @@ function Notes({ selectedDate, dark }) {
   );
 }
 
+// ============ Daily Muhasaba Reflection ============
+function Reflection({ selectedDate, dark }) {
+  const [existing, setExisting] = useState(null);
+  const [good, setGood] = useState('');
+  const [bad, setBad] = useState('');
+  const [plan, setPlan] = useState('');
+
+  const load = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.from('notes').select('*').eq('user_id', user.id).eq('date', selectedDate).like('content', '🕌 আজকের মুহাসাবা%').limit(1);
+    setExisting(data && data[0] ? data[0] : null);
+  }, [selectedDate]);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async (e) => {
+    e.preventDefault();
+    if (!good.trim() && !bad.trim() && !plan.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    const banglaDays = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
+    const content = `🕌 আজকের মুহাসাবা\n\n✅ আজ ভালো যা করলাম:\n${good || '—'}\n\n⚠️ ভুল বা ঘাটতি:\n${bad || '—'}\n\n🎯 আগামীকালের পরিকল্পনা:\n${plan || '—'}`;
+    await supabase.from('notes').insert({ user_id: user.id, content, date: selectedDate, day: banglaDays[new Date(selectedDate).getDay()], mood: 'thinking' });
+    setGood(''); setBad(''); setPlan(''); load();
+  };
+  const remove = async () => {
+    if (window.confirm('নিশ্চিত?')) { await supabase.from('notes').delete().eq('id', existing.id); setExisting(null); }
+  };
+
+  const c = dark ? '#2d3436' : 'white';
+  const tc = dark ? '#eee' : '#333';
+  const sc = dark ? '#aaa' : '#888';
+  const inputS = { width: '100%', padding: '12px 14px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, borderRadius: '12px', fontSize: '14px', outline: 'none', resize: 'vertical', minHeight: '70px', fontFamily: 'inherit', background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333', marginBottom: '12px' };
+
+  return (
+    <div style={{ animation: 'fadeIn 0.5s ease' }}>
+      <div style={{ background: c, borderRadius: '24px', padding: '30px', boxShadow: '0 10px 30px rgba(0,0,0,0.06)', borderTop: '4px solid #6c5ce7' }}>
+        <div style={{ fontSize: '22px', fontWeight: '700', color: tc, marginBottom: '6px', textAlign: 'center' }}>🕌 আজকের মুহাসাবা</div>
+        <div style={{ fontSize: '13px', color: sc, textAlign: 'center', marginBottom: '20px' }}>দিন শেষে নিজের হিসাব নিন — এটাই মুহাসাবা</div>
+        {existing ? (
+          <div>
+            <div style={{ fontSize: '15px', color: tc, lineHeight: '1.8', whiteSpace: 'pre-wrap', background: dark ? '#1e272e' : '#f8f9fa', borderRadius: '12px', padding: '18px' }}>{existing.content}</div>
+            <button onClick={remove} style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#ff6b6b', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>মুছে নতুন করে লিখুন</button>
+          </div>
+        ) : (
+          <form onSubmit={save}>
+            <label style={{ fontSize: '14px', fontWeight: '700', color: tc, display: 'block', marginBottom: '6px' }}>✅ আজ ভালো যা করলাম</label>
+            <textarea style={inputS} placeholder="যেমন: ফজরের নামাজ জামাতে পড়েছি, ৩টি কাজ শেষ করেছি..." value={good} onChange={e => setGood(e.target.value)} />
+            <label style={{ fontSize: '14px', fontWeight: '700', color: tc, display: 'block', marginBottom: '6px' }}>⚠️ ভুল বা ঘাটতি</label>
+            <textarea style={inputS} placeholder="যেমন: অযথা মোবাইলে সময় নষ্ট হয়েছে..." value={bad} onChange={e => setBad(e.target.value)} />
+            <label style={{ fontSize: '14px', fontWeight: '700', color: tc, display: 'block', marginBottom: '6px' }}>🎯 আগামীকালের পরিকল্পনা</label>
+            <textarea style={inputS} placeholder="যেমন: সকাল ৬টায় উঠব, ৫টি কাজ শেষ করব..." value={plan} onChange={e => setPlan(e.target.value)} />
+            <button type="submit" style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '12px', background: 'linear-gradient(135deg, #6c5ce7, #a29bfe)', color: 'white', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>মুহাসাবা সংরক্ষণ করুন</button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============ Calendar ============
 function Calendar({ dark }) {
   const [month, setMonth] = useState(new Date().getMonth());
@@ -517,6 +658,102 @@ function Calendar({ dark }) {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ Reports (30-day analytics) ============
+function Reports({ dark }) {
+  const [tasks, setTasks] = useState([]);
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from('tasks').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(2000);
+      setTasks(data || []);
+    })();
+  }, []);
+
+  const map = {};
+  tasks.forEach(t => {
+    if (!map[t.date]) map[t.date] = { total: 0, completed: 0 };
+    map[t.date].total++;
+    if (t.completed) map[t.date].completed++;
+  });
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    const dd = map[ds] || { total: 0, completed: 0 };
+    days.push({ date: ds, dayNum: d.getDate(), total: dd.total, completed: dd.completed, percentage: dd.total > 0 ? Math.round((dd.completed / dd.total) * 100) : 0 });
+  }
+  const activeDays = days.filter(d => d.total > 0);
+  const totalDone = days.reduce((s, d) => s + d.completed, 0);
+  const totalAll = days.reduce((s, d) => s + d.total, 0);
+  const avg = activeDays.length > 0 ? Math.round(activeDays.reduce((s, d) => s + d.percentage, 0) / activeDays.length) : 0;
+  const best = activeDays.length > 0 ? activeDays.reduce((a, b) => (b.percentage > a.percentage ? b : a)) : null;
+
+  const catMap = {};
+  tasks.forEach(t => {
+    const cid = t.category || 'general';
+    if (!catMap[cid]) catMap[cid] = { total: 0, completed: 0 };
+    catMap[cid].total++;
+    if (t.completed) catMap[cid].completed++;
+  });
+
+  const c = dark ? '#2d3436' : 'white';
+  const tc = dark ? '#eee' : '#333';
+  const sc = dark ? '#aaa' : '#888';
+
+  return (
+    <div style={{ animation: 'fadeIn 0.5s ease' }}>
+      <h2 style={{ fontSize: '22px', color: tc, marginBottom: '25px', textAlign: 'center' }}>📈 গত ৩০ দিনের রিপোর্ট</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '15px', marginBottom: '25px' }}>
+        {[
+          { num: totalAll, label: '📋 মোট কাজ' },
+          { num: totalDone, label: '✅ সম্পন্ন' },
+          { num: `${avg}%`, label: '📊 গড় হার' },
+          { num: best ? `${best.percentage}% (${best.dayNum} তারিখ)` : '—', label: '🏆 সেরা দিন' },
+        ].map((item, i) => (
+          <div key={i} style={{ background: c, borderRadius: '18px', padding: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', textAlign: 'center', animation: `slideUp 0.4s ease ${i * 0.1}s both` }}>
+            <div style={{ fontSize: '22px', fontWeight: '700', background: 'linear-gradient(135deg, #667eea, #764ba2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{item.num}</div>
+            <div style={{ fontSize: '12px', color: sc, marginTop: '4px' }}>{item.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: c, borderRadius: '20px', padding: '25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', marginBottom: '25px' }}>
+        <div style={{ fontSize: '16px', fontWeight: '700', color: tc, marginBottom: '20px' }}>📊 শেষ ১৪ দিন</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '150px', gap: '4px' }}>
+          {days.slice(-14).map((d, i) => (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '9px', fontWeight: '700', color: dark ? '#a29bfe' : '#667eea' }}>{d.total > 0 ? `${d.percentage}%` : ''}</div>
+              <div style={{ width: '100%', borderRadius: '6px 6px 0 0', background: d.total === 0 ? (dark ? '#3d3d3d' : '#e9ecef') : 'linear-gradient(180deg, #00b894, #00cec9)', height: `${Math.max(d.percentage * 1.1, 4)}px`, opacity: d.total === 0 ? 0.3 : 1 }}></div>
+              <div style={{ fontSize: '9px', color: sc }}>{d.dayNum}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ background: c, borderRadius: '20px', padding: '25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)' }}>
+        <div style={{ fontSize: '16px', fontWeight: '700', color: tc, marginBottom: '15px' }}>📂 ক্যাটাগরি অনুযায়ী (সব সময়)</div>
+        {Object.keys(catMap).length === 0 ? (
+          <div style={{ color: sc, textAlign: 'center', padding: '20px' }}>এখনো কোনো কাজ নেই</div>
+        ) : Object.entries(catMap).map(([cid, v]) => {
+          const cat = CATEGORIES.find(x => x.id === cid) || CATEGORIES[0];
+          const pct = Math.round((v.completed / v.total) * 100);
+          return (
+            <div key={cid} style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
+                <span style={{ color: cat.color, fontWeight: '700' }}>{cat.label}</span>
+                <span style={{ color: sc }}>{v.completed}/{v.total} ({pct}%)</span>
+              </div>
+              <div style={{ width: '100%', height: '10px', background: dark ? '#3d3d3d' : '#e9ecef', borderRadius: '6px', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${pct}%`, borderRadius: '6px', background: cat.color, transition: 'width 0.5s' }}></div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -592,6 +829,18 @@ function Settings({ dark, setDark }) {
     const { error } = await supabase.auth.updateUser({ password: newPass });
     if (error) setErr(error.message); else { setMsg('পাসওয়ার্ড পরিবর্তন হয়েছে!'); setErr(''); setNewPass(''); }
   };
+  const exportData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: t } = await supabase.from('tasks').select('*').eq('user_id', user.id);
+    const { data: n } = await supabase.from('notes').select('*').eq('user_id', user.id);
+    const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), tasks: t || [], notes: n || [] }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `muhasaba-backup-${todayStr()}.json`;
+    a.click();
+    setMsg('ব্যাকআপ ডাউনলোড হয়েছে!');
+  };
   const c = dark ? '#2d3436' : 'white';
   const tc = dark ? '#eee' : '#333';
   const inputS = { width: '100%', padding: '14px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, borderRadius: '12px', fontSize: '15px', marginBottom: '12px', outline: 'none', background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333' };
@@ -609,6 +858,11 @@ function Settings({ dark, setDark }) {
         <div style={{ fontSize: '16px', fontWeight: '700', color: tc, marginBottom: '15px' }}>পাসওয়ার্ড পরিবর্তন</div>
         <input style={inputS} type="password" placeholder="নতুন পাসওয়ার্ড" value={newPass} onChange={e => setNewPass(e.target.value)} />
         <button onClick={savePass} style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '12px', background: '#ff6b6b', color: 'white', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>পাসওয়ার্ড পরিবর্তন</button>
+      </div>
+      <div style={{ background: c, borderRadius: '20px', padding: '25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
+        <div style={{ fontSize: '16px', fontWeight: '700', color: tc, marginBottom: '15px' }}>💾 ডেটা ব্যাকআপ</div>
+        <div style={{ fontSize: '13px', color: sc, marginBottom: '12px' }}>আপনার সব কাজ ও নোট JSON ফাইলে ডাউনলোড করুন</div>
+        <button onClick={exportData} style={{ width: '100%', padding: '12px', border: 'none', borderRadius: '12px', background: '#00b894', color: 'white', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>⬇️ ব্যাকআপ ডাউনলোড</button>
       </div>
       <div style={{ background: c, borderRadius: '20px', padding: '25px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)' }}>
         <div style={{ fontSize: '16px', fontWeight: '700', color: tc, marginBottom: '15px' }}>থিম</div>
@@ -679,13 +933,15 @@ function App() {
       `}</style>
       <Navbar user={user} onLogout={handleLogout} currentPage={currentPage} setCurrentPage={setCurrentPage} dark={dark} setDark={setDark} />
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '25px 20px' }}>
-        {currentPage !== 'settings' && currentPage !== 'calendar' && currentPage !== 'achievements' && (
+        {currentPage !== 'settings' && currentPage !== 'calendar' && currentPage !== 'achievements' && currentPage !== 'reports' && (
           <DateNav selectedDate={selectedDate} setSelectedDate={setSelectedDate} dark={dark} />
         )}
         {currentPage === 'dashboard' && <Dashboard selectedDate={selectedDate} dark={dark} refreshKey={refreshKey} />}
         {currentPage === 'tasks' && <Tasks selectedDate={selectedDate} dark={dark} onChange={() => setRefreshKey(k => k + 1)} />}
+        {currentPage === 'muhasaba' && <Reflection selectedDate={selectedDate} dark={dark} />}
         {currentPage === 'notes' && <Notes selectedDate={selectedDate} dark={dark} />}
         {currentPage === 'calendar' && <Calendar dark={dark} />}
+        {currentPage === 'reports' && <Reports dark={dark} />}
         {currentPage === 'achievements' && <Achievements dark={dark} refreshKey={refreshKey} />}
         {currentPage === 'settings' && <Settings dark={dark} setDark={setDark} />}
       </div>
