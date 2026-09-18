@@ -116,7 +116,7 @@ function LoginPage({ onLogin }) {
   return (
     <div style={s.container}>
       <div style={s.card}>
-        <div style={s.title}>মুহাসাবত্র</div>
+        <div style={s.title}>মুহাসাবাপত্র</div>
         <div style={s.subtitle}>দৈনন্দিন কাজের হিসাব</div>
         <div style={s.tabs}>
           <button style={{ ...s.tab, ...(isLogin ? s.tabActive : {}) }} onClick={() => { setIsLogin(true); setError(''); }}>লগইন</button>
@@ -148,7 +148,7 @@ function Navbar({ user, onLogout, currentPage, setCurrentPage, dark, setDark }) 
   return (
     <nav style={{ background: dark ? '#1e272e' : 'white', padding: '12px 20px', boxShadow: '0 2px 20px rgba(0,0,0,0.08)', position: 'sticky', top: 0, zIndex: 100 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1100px', margin: '0 auto', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ fontSize: '20px', fontWeight: '700', background: 'linear-gradient(135deg, #667eea, #764ba2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>মুহাসাবত্র</div>
+        <div style={{ fontSize: '20px', fontWeight: '700', background: 'linear-gradient(135deg, #667eea, #764ba2)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>মুহাসাবাপত্র</div>
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {pages.map(p => (
             <button key={p.id} onClick={() => setCurrentPage(p.id)} style={{ padding: '8px 14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', background: currentPage === p.id ? 'linear-gradient(135deg, #667eea, #764ba2)' : 'transparent', color: currentPage === p.id ? 'white' : (dark ? '#aaa' : '#666') }}>
