@@ -35,6 +35,60 @@ const BADGES = [
 const getTheme = () => localStorage.getItem('theme') || 'light';
 const todayStr = () => new Date().toISOString().split('T')[0];
 
+// YouTube search link (সবসময় কাজ করে, ভাঙা লিংকের ভয় নেই)
+const yt = (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+
+const MEDIA = {
+  speeches: [
+    { t: 'সকালের অনুপ্রেরণা', d: 'দিন শুরু করুন উদ্দীপনামূলক কথা দিয়ে', q: 'বাংলা মোটিভেশনাল বক্তব্য' },
+    { t: 'ব্যর্থতা থেকে সাফল্য', d: 'হাল না ছাড়ার অনুপ্রেরণামূলক গল্প', q: 'ব্যর্থতা থেকে সফলতার গল্প বাংলা' },
+    { t: 'পরিশ্রম ও ধৈর্য', d: 'সফলতার চাবিকাঠি নিয়ে বক্তব্য', q: 'পরিশ্রম ধৈর্য নিয়ে বাংলা বক্তব্য' },
+    { t: 'আত্মবিশ্বাস বাড়ান', d: 'নিজের উপর বিশ্বাস ফিরিয়ে আনুন', q: 'আত্মবিশ্বাস বাড়ানোর উপায় বাংলা বক্তব্য' },
+    { t: 'সময়ের মূল্য', d: 'সময় নষ্ট নয়, সময়কে কাজে লাগান', q: 'সময়ের মূল্য নিয়ে বক্তব্য বাংলা' },
+    { t: 'ইসলামিক অনুপ্রেরণা', d: 'দ্বীনি চেতনায় জীবন বদলের কথা', q: 'মিজানুর রহমান আজহারী মোটিভেশনাল বক্তব্য' },
+  ],
+  nasheed: {
+    'বাংলা': [
+      { t: 'বাংলা ইসলামিক গজল', d: 'মন ছুঁয়ে যাওয়া বাংলা গজল', q: 'বাংলা ইসলামিক গজল' },
+      { t: 'কলরবের গজল', d: 'কলরব শিল্পীগোষ্ঠীর জনপ্রিয় গজল', q: 'কলরব শিল্পীগোষ্ঠী গজল' },
+      { t: 'হামদ ও নাত', d: 'আল্লাহ ও রাসূলের প্রশংসায়', q: 'বাংলা হামদ নাত' },
+      { t: 'শান্তির গজল', d: 'মন খারাপে প্রশান্তির সুর', q: 'মন শান্ত করা ইসলামিক গজল বাংলা' },
+    ],
+    'আরবী': [
+      { t: 'মাহের জাইন', d: 'বিশ্ববিখ্যাত আরবী নাশিদ', q: 'Maher Zain nasheed' },
+      { t: 'আহমেদ বুখাতির', d: 'হৃদয়স্পর্শী আরবী নাশিদ', q: 'Ahmed Bukhatir nasheed' },
+      { t: 'মুহাম্মদ ত্বহা', d: 'সুমধুর কণ্ঠের নাশিদ', q: 'Muhammad Taha Al Junaid nasheed' },
+      { t: 'আরবী নাশিদ সংগ্রহ', d: 'সেরা আরবী নাশিদ একসাথে', q: 'best arabic nasheed' },
+    ],
+    'উর্দূ': [
+      { t: 'ওয়াইস রেজা কাদরী', d: 'বিখ্যাত উর্দূ নাত', q: 'Owais Raza Qadri naat' },
+      { t: 'জুনায়েদ জামশেদ', d: 'অমর উর্দূ নাত ও হামদ', q: 'Junaid Jamshed naat' },
+      { t: 'সামি ইউসুফ', d: 'আন্তর্জাতিক খ্যাত নাশিদ শিল্পী', q: 'Sami Yusuf nasheed' },
+      { t: 'উর্দূ নাত সংগ্রহ', d: 'মন ভালো করা উর্দূ নাত', q: 'best urdu naat sharif' },
+    ],
+  },
+  stories: {
+    'শিক্ষামূলক': [
+      { t: 'ঠাকুরমার ঝুলি', d: 'নীতিকথার চিরায়ত গল্প', q: 'ঠাকুরমার ঝুলি শিক্ষামূলক গল্প' },
+      { t: 'পঞ্চতন্ত্র', d: 'প্রাচীন জ্ঞানের ভাণ্ডার', q: 'পঞ্চতন্ত্রের গল্প বাংলা' },
+      { t: 'ঈশপের গল্প', d: 'ছোট গল্পে বড় শিক্ষা', q: 'ঈশপের গল্প বাংলা' },
+      { t: 'নবীদের জীবনী', d: 'অনুপ্রেরণামূলক জীবনকাহিনী', q: 'নবীদের জীবনী গল্প বাংলা' },
+    ],
+    'আনন্দদায়ক': [
+      { t: 'গোপাল ভাঁড়', d: 'হাসি আর বুদ্ধির গল্প', q: 'গোপাল ভাঁড়ের গল্প' },
+      { t: 'মজার গল্প', d: 'মন ভালো করা হাসির গল্প', q: 'মজার বাংলা গল্প' },
+      { t: 'বোকা ও চালাক', d: 'মজার চরিত্রের কাহিনী', q: 'মজার গল্প ঠাকুরমার ঝুলি' },
+      { t: 'হাসির নাটক', d: 'শুনে হাসতে হাসতে পেট ব্যথা', q: 'বাংলা হাসির গল্প অডিও' },
+    ],
+    'ভৌতিক': [
+      { t: 'বাংলা ভৌতিক গল্প', d: 'গা ছমছমে ভূতের কাহিনী', q: 'বাংলা ভৌতিক গল্প' },
+      { t: 'সানডে সাসপেন্স', d: 'রোমহর্ষক অডিও ড্রামা', q: 'Sunday Suspense horror story' },
+      { t: 'রাতের ভয়', d: 'রাতে শোনার ভয়ের গল্প', q: 'ভূতের গল্প রাতে শোনার বাংলা' },
+      { t: 'সত্য ভৌতিক ঘটনা', d: 'বাস্তব অভিজ্ঞতার বর্ণনা', q: 'সত্য ভৌতিক ঘটনা বাংলা' },
+    ],
+  },
+};
+
 // ---------- motivational message ----------
 function getMessage(percentage, totalTasks) {
   if (totalTasks === 0) return { message: 'আজকে কোনো কাজ যোগ করা হয়নি। এখনই আপনার দৈনিক কাজগুলো যোগ করুন!', emoji: '📝', mood: 'info' };
@@ -142,6 +196,7 @@ function Navbar({ user, onLogout, currentPage, setCurrentPage, dark, setDark }) 
     { id: 'tasks', label: 'কাজ', icon: '✅' },
     { id: 'muhasaba', label: 'মুহাসাবা', icon: '🕌' },
     { id: 'notes', label: 'নোট', icon: '📝' },
+    { id: 'media', label: 'বিনোদন', icon: '🎧' },
     { id: 'calendar', label: 'ক্যালেন্ডার', icon: '📅' },
     { id: 'reports', label: 'রিপোর্ট', icon: '📈' },
     { id: 'achievements', label: 'ব্যাজ', icon: '🏅' },
@@ -454,7 +509,7 @@ function Tasks({ selectedDate, dark, onChange }) {
 }
 
 // ============ Notes ============
-function Notes({ selectedDate, dark }) {
+function Notes({ selectedDate, dark, onGoMedia }) {
   const [notes, setNotes] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [content, setContent] = useState('');
@@ -519,6 +574,12 @@ function Notes({ selectedDate, dark }) {
                   ))}
                 </div>
               </div>
+              {mood === 'sad' && onGoMedia && (
+                <div style={{ padding: '12px 16px', borderRadius: '12px', background: dark ? '#6c5ce722' : '#f0f0ff', marginBottom: '15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '14px', color: tc }}>🌧️ মন খারাপ? প্রশান্তির সংগীত শুনুন</div>
+                  <button type="button" onClick={() => { setShowModal(false); onGoMedia(); }} style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: 'white', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>🎵 সংগীত শুনুন</button>
+                </div>
+              )}
               <textarea style={{ width: '100%', padding: '14px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, borderRadius: '12px', fontSize: '15px', marginBottom: '15px', outline: 'none', resize: 'vertical', minHeight: '150px', fontFamily: 'inherit', background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333' }} placeholder="আজকের দিন সম্পর্কে লিখুন..." value={content} onChange={e => setContent(e.target.value)} autoFocus />
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button type="submit" style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '12px', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: 'white', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>সংরক্ষণ</button>
@@ -875,6 +936,136 @@ function Settings({ dark, setDark }) {
   );
 }
 
+// ============ Media (বিনোদন ও প্রশান্তি) ============
+function MediaCard({ item, dark, actionLabel }) {
+  const c = dark ? '#2d3436' : 'white';
+  const tc = dark ? '#eee' : '#333';
+  const sc = dark ? '#aaa' : '#888';
+  return (
+    <div style={{ background: c, borderRadius: '16px', padding: '18px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', gap: '8px', animation: 'slideUp 0.3s ease' }}>
+      <div style={{ fontSize: '15px', fontWeight: '700', color: tc }}>{item.t}</div>
+      <div style={{ fontSize: '13px', color: sc, lineHeight: '1.6', flex: 1 }}>{item.d}</div>
+      <a href={yt(item.q)} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', textAlign: 'center', padding: '10px', borderRadius: '10px', background: 'linear-gradient(135deg, #e17055, #d63031)', color: 'white', fontSize: '14px', fontWeight: '700', textDecoration: 'none' }}>▶ {actionLabel}</a>
+    </div>
+  );
+}
+
+function Media({ dark }) {
+  const [tab, setTab] = useState('speeches');
+  const [lang, setLang] = useState('বাংলা');
+  const [storyCat, setStoryCat] = useState('শিক্ষামূলক');
+  const [favs, setFavs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('media_favorites') || '[]'); } catch { return []; }
+  });
+  const [fTitle, setFTitle] = useState('');
+  const [fUrl, setFUrl] = useState('');
+  const [fCat, setFCat] = useState('সংগীত');
+
+  const c = dark ? '#2d3436' : 'white';
+  const tc = dark ? '#eee' : '#333';
+  const sc = dark ? '#aaa' : '#888';
+  const ic = dark ? '#3d3d3d' : '#f0f0f0';
+  const pill = (active) => ({ padding: '10px 18px', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '14px', fontWeight: '700', background: active ? 'linear-gradient(135deg, #667eea, #764ba2)' : ic, color: active ? 'white' : (dark ? '#aaa' : '#666') });
+
+  const saveFav = (e) => {
+    e.preventDefault();
+    if (!fTitle.trim() || !fUrl.trim()) return;
+    let url = fUrl.trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    const list = [...favs, { id: Date.now(), title: fTitle.trim(), url, cat: fCat }];
+    setFavs(list);
+    localStorage.setItem('media_favorites', JSON.stringify(list));
+    setFTitle(''); setFUrl('');
+  };
+  const delFav = (id) => {
+    const list = favs.filter(f => f.id !== id);
+    setFavs(list);
+    localStorage.setItem('media_favorites', JSON.stringify(list));
+  };
+
+  const tabs = [
+    { id: 'speeches', label: '🎙️ বক্তব্য' },
+    { id: 'nasheed', label: '🎵 সংগীত' },
+    { id: 'stories', label: '📖 গল্প' },
+    { id: 'favs', label: '⭐ প্রিয়' },
+  ];
+
+  return (
+    <div style={{ animation: 'fadeIn 0.5s ease' }}>
+      <h2 style={{ fontSize: '22px', color: tc, marginBottom: '6px', textAlign: 'center' }}>🎧 বিনোদন ও প্রশান্তি</h2>
+      <div style={{ fontSize: '13px', color: sc, textAlign: 'center', marginBottom: '20px' }}>মনোবল বাড়ান, মন শান্ত করুন, গল্পে ডুবে যান</div>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {tabs.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={pill(tab === t.id)}>{t.label}</button>)}
+      </div>
+
+      {tab === 'speeches' && (
+        <div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: tc, marginBottom: '12px' }}>🎙️ উদ্দীপনামূলক বাংলা বক্তব্য</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {MEDIA.speeches.map((item, i) => <MediaCard key={i} item={item} dark={dark} actionLabel="শুনুন" />)}
+          </div>
+        </div>
+      )}
+
+      {tab === 'nasheed' && (
+        <div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap' }}>
+            {Object.keys(MEDIA.nasheed).map(l => <button key={l} onClick={() => setLang(l)} style={pill(lang === l)}>{l}</button>)}
+          </div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: tc, marginBottom: '12px' }}>🎵 {lang} ইসলামিক সংগীত</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {MEDIA.nasheed[lang].map((item, i) => <MediaCard key={i} item={item} dark={dark} actionLabel="শুনুন" />)}
+          </div>
+        </div>
+      )}
+
+      {tab === 'stories' && (
+        <div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap' }}>
+            {Object.keys(MEDIA.stories).map(s => <button key={s} onClick={() => setStoryCat(s)} style={pill(storyCat === s)}>{s}</button>)}
+          </div>
+          <div style={{ fontSize: '15px', fontWeight: '700', color: tc, marginBottom: '12px' }}>📖 {storyCat} গল্প</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+            {MEDIA.stories[storyCat].map((item, i) => <MediaCard key={i} item={item} dark={dark} actionLabel="উপভোগ করুন" />)}
+          </div>
+        </div>
+      )}
+
+      {tab === 'favs' && (
+        <div>
+          <div style={{ background: c, borderRadius: '18px', padding: '20px', boxShadow: '0 8px 25px rgba(0,0,0,0.06)', marginBottom: '15px' }}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: tc, marginBottom: '12px' }}>⭐ নিজের প্রিয় লিংক যোগ করুন</div>
+            <form onSubmit={saveFav}>
+              <input value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="শিরোনাম (যেমন: প্রিয় গজল)" style={{ width: '100%', padding: '12px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, borderRadius: '10px', fontSize: '14px', marginBottom: '10px', outline: 'none', background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333' }} />
+              <input value={fUrl} onChange={e => setFUrl(e.target.value)} placeholder="লিংক (https://...)" style={{ width: '100%', padding: '12px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, borderRadius: '10px', fontSize: '14px', marginBottom: '10px', outline: 'none', background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select value={fCat} onChange={e => setFCat(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: `2px solid ${dark ? '#3d3d3d' : '#e0e0e0'}`, background: dark ? '#1e272e' : 'white', color: dark ? '#eee' : '#333', fontSize: '14px', outline: 'none' }}>
+                  <option value="বক্তব্য">বক্তব্য</option>
+                  <option value="সংগীত">সংগীত</option>
+                  <option value="গল্প">গল্প</option>
+                </select>
+                <button type="submit" style={{ flex: 2, padding: '12px', border: 'none', borderRadius: '10px', background: 'linear-gradient(135deg, #667eea, #764ba2)', color: 'white', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>+ যোগ করুন</button>
+              </div>
+            </form>
+          </div>
+          {favs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: sc }}><div style={{ fontSize: '45px', marginBottom: '10px' }}>⭐</div>এখনো কোনো প্রিয় লিংক নেই</div>
+          ) : favs.map(f => (
+            <div key={f.id} style={{ background: c, borderRadius: '14px', padding: '16px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: tc }}>{f.title}</div>
+                <div style={{ fontSize: '12px', color: sc }}>{f.cat}</div>
+              </div>
+              <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: '8px', background: '#00b894', color: 'white', fontSize: '13px', fontWeight: '700', textDecoration: 'none' }}>▶ খুলুন</a>
+              <button onClick={() => delFav(f.id)} style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#ff6b6b', color: 'white', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>মুছুন</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ DateNav ============
 function DateNav({ selectedDate, setSelectedDate, dark }) {
   const changeDate = (days) => { const d = new Date(selectedDate); d.setDate(d.getDate() + days); setSelectedDate(d.toISOString().split('T')[0]); };
@@ -933,13 +1124,14 @@ function App() {
       `}</style>
       <Navbar user={user} onLogout={handleLogout} currentPage={currentPage} setCurrentPage={setCurrentPage} dark={dark} setDark={setDark} />
       <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '25px 20px' }}>
-        {currentPage !== 'settings' && currentPage !== 'calendar' && currentPage !== 'achievements' && currentPage !== 'reports' && (
+        {currentPage !== 'settings' && currentPage !== 'calendar' && currentPage !== 'achievements' && currentPage !== 'reports' && currentPage !== 'media' && (
           <DateNav selectedDate={selectedDate} setSelectedDate={setSelectedDate} dark={dark} />
         )}
         {currentPage === 'dashboard' && <Dashboard selectedDate={selectedDate} dark={dark} refreshKey={refreshKey} />}
         {currentPage === 'tasks' && <Tasks selectedDate={selectedDate} dark={dark} onChange={() => setRefreshKey(k => k + 1)} />}
         {currentPage === 'muhasaba' && <Reflection selectedDate={selectedDate} dark={dark} />}
-        {currentPage === 'notes' && <Notes selectedDate={selectedDate} dark={dark} />}
+        {currentPage === 'notes' && <Notes selectedDate={selectedDate} dark={dark} onGoMedia={() => setCurrentPage('media')} />}
+        {currentPage === 'media' && <Media dark={dark} />}
         {currentPage === 'calendar' && <Calendar dark={dark} />}
         {currentPage === 'reports' && <Reports dark={dark} />}
         {currentPage === 'achievements' && <Achievements dark={dark} refreshKey={refreshKey} />}
