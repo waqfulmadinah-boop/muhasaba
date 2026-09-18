@@ -1,4 +1,4 @@
--- মুহাসাবত্র - Supabase Database Schema
+-- মুহাসাবাপত্র - Supabase Database Schema
 -- এই SQL Supabase Dashboard > SQL Editor এ চালান
 
 -- 1. Tasks টেবিল
